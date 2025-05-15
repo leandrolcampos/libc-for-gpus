@@ -1,12 +1,12 @@
 # Building the GPU C library
 
-This document presents instructions to build the LLVM C library targeting NVIDIA GPUs. These instructions were tested on a machine running Windows 11 Home with:  
+This document presents instructions to build the LLVM C library targeting NVIDIA GPUs. These instructions were tested on a laptop running Windows 11 Home with:  
 
 * AMD Ryzen AI 9 HX (12 cores)  
 * 32 GB RAM
-* NVIDIA GeForce RTX 4070 Laptop GPU
+* NVIDIA GeForce RTX 4070
 
-Newer or older hardware should also work; adjust the parallelism accordingly (a flag like `-j4` in `ninja` commands).
+Newer or older hardware should also work; adjust the parallelism accordingly.
 
 WSL 2 and a recent NVIDIA Windows GPU driver must already be enabled and installed.
 
@@ -35,6 +35,12 @@ sudo dpkg -i cuda-repo-wsl-ubuntu-12-9-local_12.9.0-1_amd64.deb
 sudo cp /var/cuda-repo-wsl-ubuntu-12-9-local/cuda-*-keyring.gpg /usr/share/keyrings/
 sudo apt update
 sudo apt -y install cuda-toolkit-12-9
+```
+
+Verify that the GPU is visible from WSL and CUDA is correctly installed:
+
+```bash
+nvidia-smi
 ```
 
 ## 3. Set up environment variables
@@ -76,24 +82,26 @@ Below is the list of commands for a simple recipe to build the GPU C library in 
 
 ```bash
 cd llvm-project
-mkdir build && cd build
-cmake ../llvm -G Ninja \
+cmake ./llvm -B build -G Ninja \
   -DLLVM_ENABLE_PROJECTS="clang;lld" \
   -DLLVM_ENABLE_RUNTIMES="openmp;offload;libc" \
   -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_ENABLE_ASSERTIONS=ON \
+  -DLLVM_PARALLEL_LINK_JOBS=1 \
   -DCMAKE_INSTALL_PREFIX="$LLVM_HOME" \
   -DRUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES=libc \
   -DLLVM_RUNTIME_TARGETS="default;nvptx64-nvidia-cuda"
 ```
 
-We need an up-to-date `clang` to build the GPU C library and an up-to-date `lld` to link GPU executables, so we enable them in `LLVM_ENABLE_PROJECTS`. We add `openmp`, `offload`, and `libc` to `LLVM_ENABLE_RUNTIMES` so they are built for the default target. We then set `RUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES` to enable `libc` for NVIDIA GPUs. The `LLVM_RUNTIME_TARGETS` sets the enabled targets to be built; in this case we want the default target and NVIDIA GPUs.
+We need an up-to-date `clang` to build the GPU C library and `lld` to link GPU executables, so we enable them in `LLVM_ENABLE_PROJECTS`. We add `openmp`, `offload`, and `libc` to `LLVM_ENABLE_RUNTIMES` so they are built for the default target. We then set `RUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES` to enable `libc` for NVIDIA GPUs. The `LLVM_RUNTIME_TARGETS` sets the enabled targets to be built; in this case we want the default target and NVIDIA GPUs.
 
 ## 7. Build and test
 
 After configuring the build with the above `cmake` command, one can build the GPU C library with the following command:
 
 ```bash
-ninja install -j4
+cd build
+ninja install -j8
 ```
 
 Try the `clang` compiler:
