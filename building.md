@@ -82,7 +82,7 @@ Below is the list of commands for a simple recipe to build the GPU C library in 
 
 ```bash
 cd llvm-project
-cmake ./llvm -B build -G Ninja \
+cmake -S llvm -B build -G Ninja \
   -DLLVM_ENABLE_PROJECTS="clang;lld" \
   -DLLVM_ENABLE_RUNTIMES="openmp;offload;libc" \
   -DCMAKE_BUILD_TYPE=Release \
@@ -100,8 +100,7 @@ We need an up-to-date `clang` to build the GPU C library and `lld` to link GPU e
 After configuring the build with the above `cmake` command, one can build the GPU C library with the following command:
 
 ```bash
-cd build
-ninja install -j8
+ninja -C build install -j8
 ```
 
 Try the `clang` compiler:
@@ -113,5 +112,5 @@ clang --version
 Then run all supported GPU tests:
 
 ```bash
-ninja check-libc-nvptx64-nvidia-cuda -j4
+ninja -C check-libc-nvptx64-nvidia-cuda -j4
 ```
