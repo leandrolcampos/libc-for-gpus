@@ -87,6 +87,7 @@ cmake -S llvm -B build -G Ninja \
   -DLLVM_ENABLE_RUNTIMES="openmp;offload;libc" \
   -DCMAKE_BUILD_TYPE=Release \
   -DLLVM_ENABLE_ASSERTIONS=ON \
+  -DLIBC_INCLUDE_BENCHMARKS=ON \
   -DLLVM_PARALLEL_LINK_JOBS=1 \
   -DCMAKE_INSTALL_PREFIX="$LLVM_HOME" \
   -DRUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES=libc \
@@ -112,5 +113,5 @@ clang --version
 Then run all supported GPU tests:
 
 ```bash
-ninja -C check-libc-nvptx64-nvidia-cuda -j4
+ninja -C build check-libc-nvptx64-nvidia-cuda -j2
 ```
