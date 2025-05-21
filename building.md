@@ -45,11 +45,11 @@ nvidia-smi
 
 ## 3. Set up environment variables
 
-Append the following to `~/.bashrc` (use Visual Studio Code or any editor):
+Append the following to `~/.bashrc`:
 
 ```bash
-export LLVM_HOME="$HOME/opt/llvm"
-export PATH="$LLVM_HOME/bin:$PATH"
+echo 'export LLVM_HOME="$HOME/opt/llvm"' >> ~/.bashrc
+echo 'export PATH="$LLVM_HOME/bin:$PATH"' >> ~/.bashrc
 ```
 
 Activate the change and confirm:
