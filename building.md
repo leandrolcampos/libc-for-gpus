@@ -48,8 +48,10 @@ nvidia-smi
 Append the following to `~/.bashrc`:
 
 ```bash
+echo 'export CUDA_HOME="/usr/local/cuda"' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH="/usr/lib/wsl/lib:$LD_LIBRARY_PATH"' >> ~/.bashrc
 echo 'export LLVM_HOME="$HOME/opt/llvm"' >> ~/.bashrc
-echo 'export PATH="$LLVM_HOME/bin:$PATH"' >> ~/.bashrc
+echo 'export PATH="$CUDA_HOME/bin:$LLVM_HOME/bin:$PATH"' >> ~/.bashrc
 ```
 
 Activate the change and confirm:
