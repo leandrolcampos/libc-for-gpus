@@ -1,14 +1,15 @@
-# Building the GPU C library
+# Prerequisites
 
-This document presents instructions to build the LLVM C library targeting NVIDIA GPUs. These instructions were tested on a laptop running Windows 11 Home with:  
+This document describes how to set up an environment on Windows Subsystem for Linux (WSL) to run the Offload samples on NVIDIA GPUs. The instructions presented here were tested on a laptop running Windows 11 Home with:
 
-* AMD Ryzen AI 9 HX (12 cores)  
+* AMD Ryzen AI 9 HX (12 cores)
 * 32 GB RAM
 * NVIDIA GeForce RTX 4070
 
-Newer or older hardware should also work; adjust the parallelism accordingly.
-
 WSL 2 and a recent NVIDIA Windows GPU driver must already be enabled and installed.
+
+> [!IMPORTANT]
+> AMD GPUs and other operating systems are not yet _officially_ supported.
 
 ## 1. Install Ubuntu 24.04 on WSL 2
 
@@ -22,7 +23,7 @@ Launch the new distribution, choose a UNIX username and password, and execute th
 
 ## 2. Install the CUDA Toolkit for WSL 2
 
-Follow the [CUDA on WSL User Guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html#cuda-support-for-wsl-2) and use the WSL-Ubuntu meta-package so you do not overwrite the Windows host driver.
+Follow the [CUDA on WSL User Guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html#cuda-support-for-wsl-2) and use the WSL-Ubuntu meta-package so you avoid overwriting the Windows host driver.
 
 For example, the commands to install the CUDA Toolkit 12.9 are:
 
@@ -54,20 +55,20 @@ echo 'export LLVM_HOME="$HOME/opt/llvm"' >> ~/.bashrc
 echo 'export PATH="$CUDA_HOME/bin:$LLVM_HOME/bin:$PATH"' >> ~/.bashrc
 ```
 
-Activate the change and confirm:
+Activate the changes and confirm:
 
 ```bash
 source ~/.bashrc
 echo "$LLVM_HOME"
 ```
 
-## 4. Install prerequisites
+## 4. Install the basic toolchain
 
-Install build prerequisites:
+Install the minimal toolchain required to configure, build and test the needed LLVM subprojects.
 
 ```bash
 sudo apt update
-sudo apt -y install build-essential git cmake ninja-build gcc-multilib
+sudo apt -y install build-essential git cmake ninja-build gcc-multilib python3 python3-pip
 ```
 
 ## 5. Check out the LLVM project
@@ -78,9 +79,9 @@ A shallow clone is fast and sufficient for users who only build:
 git clone --depth=1 https://github.com/llvm/llvm-project.git
 ```
 
-## 6. Configure the build
+## 6. Configure the LLVM build
 
-Below is the list of commands for a simple recipe to build the GPU C library in release mode.
+Below is a simple recipe to get a release build of the LLVM subprojects _Offload_ and _C standard library_, the latter targeting CPUs and NVIDIA GPUs.
 
 ```bash
 cd llvm-project
@@ -97,22 +98,40 @@ cmake -S llvm -B build -G Ninja \
 
 We need an up-to-date `clang` to build the GPU C library and `lld` to link GPU executables, so we enable them in `LLVM_ENABLE_PROJECTS`. We add `openmp`, `offload`, and `libc` to `LLVM_ENABLE_RUNTIMES` so they are built for the default target. We then set `RUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES` to enable `libc` for NVIDIA GPUs. The `LLVM_RUNTIME_TARGETS` sets the enabled targets to be built; in this case we want the default target and NVIDIA GPUs.
 
-## 7. Build and test
+> [!NOTE]
+> `LLVM_ENABLE_ASSERTIONS=ON` keeps assertion checks even in a release build (default is `OFF`). Remove it if the raw performance matters more than the extra safety and some debuggability.
 
-After configuring the build with the above `cmake` command, one can build the GPU C library with the following command:
+> [!IMPORTANT]
+> To avoid out-of-memory (OOM) issues, configure the option `LLVM_PARALLEL_LINK_JOBS` to permit only one link job per 15GB of RAM available on the host machine.
+
+## 7. Build, install, and run tests
+
+After configuring the build with the above CMake command, build and install the required LLVM subprojects:
 
 ```bash
 ninja -C build install -j8
 ```
 
-Try the `clang` compiler:
+> [!NOTE]
+> Running Ninja with high parallelism can cause spurious failures, out-of-resource errors, or indefinite hangs. Limit the number of jobs with `-j<N>` if you hit such issues.
+
+Now build and run the tests for the new Offload API:
 
 ```bash
-clang --version
+ninja -C build/runtimes/runtimes-bins offload.unittests
+./build/runtimes/runtimes-bins/offload/unittests/OffloadAPI/offload.unittests
 ```
 
-Then run all supported GPU tests:
-
-```bash
-ninja -C build check-libc-nvptx64-nvidia-cuda -j2
-```
+Finally, run the tests for the GPU C standard library:
+* All tests:
+    ```bash
+    ninja -C build check-libc-nvptx64-nvidia-cuda -j1
+    ```
+* Hermetic tests only:
+    ```bash
+    ninja -C build/runtimes/runtimes-nvptx64-nvidia-cuda-bins libc-hermetic-tests -j1
+    ```
+* Integration tests only:
+    ```bash
+    ninja -C build/runtimes/runtimes-nvptx64-nvidia-cuda-bins libc-integration-tests -j1
+    ```
