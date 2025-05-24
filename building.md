@@ -81,7 +81,7 @@ git clone --depth=1 https://github.com/llvm/llvm-project.git
 
 ## 6. Configure the LLVM build
 
-Below is a simple recipe to get a release build of the LLVM subprojects _Offload_ and _C standard library_, the latter targeting CPUs and NVIDIA GPUs.
+Below is a simple recipe to get a release build of the LLVM subprojects _Offload_ and _C library_ (targeting CPUs and NVIDIA GPUs).
 
 ```bash
 cd llvm-project
@@ -96,7 +96,16 @@ cmake -S llvm -B build -G Ninja \
   -DLLVM_RUNTIME_TARGETS="default;nvptx64-nvidia-cuda"
 ```
 
-We need an up-to-date `clang` to build the GPU C library and `lld` to link GPU executables, so we enable them in `LLVM_ENABLE_PROJECTS`. We add `openmp`, `offload`, and `libc` to `LLVM_ENABLE_RUNTIMES` so they are built for the default target. We then set `RUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES` to enable `libc` for NVIDIA GPUs. The `LLVM_RUNTIME_TARGETS` sets the enabled targets to be built; in this case we want the default target and NVIDIA GPUs.
+**Why these options?**
+
+| CMake flag | Rationale |
+| ---------- | --------- |
+| `LLVM_ENABLE_PROJECTS="clang;lld"` | Provide a recent Clang to compile the GPU C library and LLD to link GPU executables. |
+| `LLVM_ENABLE_RUNTIMES="openmp;offload;libc"` | Include OpenMP (required by Offload), Offload itself, and C library for the host. |
+| `LLVM_ENABLE_ASSERTIONS=ON` | Keep assertion checks even in a release build (see _Note_ below). |
+| `LLVM_PARALLEL_LINK_JOBS=1` | Limit concurrent link jobs to avoid OOM issues. (see _Important_ below). |
+| `RUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES=libc` | Build the C library for the NVIDIA target as well. |
+| `LLVM_RUNTIME_TARGETS="default;nvptx64-nvidia-cuda"` | Set the enabled targets to build; in this case, the host and the NVIDIA target. |
 
 > [!NOTE]
 > `LLVM_ENABLE_ASSERTIONS=ON` keeps assertion checks even in a release build (default is `OFF`). Remove it if the raw performance matters more than the extra safety and some debuggability.
@@ -122,7 +131,7 @@ ninja -C build/runtimes/runtimes-bins offload.unittests
 ./build/runtimes/runtimes-bins/offload/unittests/OffloadAPI/offload.unittests
 ```
 
-Finally, run the tests for the GPU C standard library:
+Finally, run the tests for the GPU C library:
 * All tests:
     ```bash
     ninja -C build check-libc-nvptx64-nvidia-cuda -j1
